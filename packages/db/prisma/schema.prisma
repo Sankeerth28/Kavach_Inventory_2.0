@@ -1,0 +1,1107 @@
+// KAVACH database schema. The full model set is specified in docs/ARCHITECTURE.md §4.3 and is
+// added slice by slice, one migration per feature (CLAUDE.md "How to work in this repo").
+// Never edit an applied migration; create a new one.
+//
+// Phase 1 (Foundation): identity & access, project structure, master data, audit, sequences.
+// Relations to tables of later phases (ledger, invoices, suppliers) are added with those tables.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum MemberStatus {
+  ACTIVE
+  REMOVED
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum LocationType {
+  TOWER
+  BLOCK
+  FLOOR
+  WORK_AREA
+  OTHER
+}
+
+enum UnitDimension {
+  COUNT
+  MASS
+  LENGTH
+  VOLUME
+  AREA
+}
+
+enum MaterialStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CreationSource {
+  MANUAL
+  AI_INVOICE
+  QUICK_RECEIVE
+  SEED
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+  WORKER
+}
+
+enum SequenceScope {
+  MATERIAL
+  RECEIPT
+  ISSUE
+  RETURN
+  ADJUSTMENT
+  REVERSAL
+  TRANSACTION
+}
+
+// ─────────────────────── Identity & access ───────────────────────
+
+/// A user logs in with an e-mail or a mobile number (DECISIONS Q36). CHECK (raw SQL): at least one.
+model User {
+  id                 String     @id @default(uuid()) @db.Uuid
+  email              String?    @unique // stored lower-cased
+  phone              String?    @unique // digits only
+  name               String
+  passwordHash       String     @map("password_hash") // argon2id
+  mustChangePassword Boolean    @default(false) @map("must_change_password")
+  status             UserStatus @default(ACTIVE)
+  lastLoginAt        DateTime?  @map("last_login_at") @db.Timestamptz(3)
+  createdById        String?    @map("created_by_id") @db.Uuid
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  createdBy            User?           @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers         User[]          @relation("UserCreatedBy")
+  memberships          ProjectMember[]
+  refreshTokens        RefreshToken[]
+  materialsCreated     Material[]      @relation("MaterialCreatedBy")
+  materialsDeactivated Material[]      @relation("MaterialDeactivatedBy")
+  auditLogs            AuditLog[]      @relation("AuditActor")
+
+  contractorsCreated     Contractor[]          @relation("ContractorCreatedBy")
+  postings               Posting[]             @relation("PostingCreatedBy")
+  transactions           MaterialTransaction[] @relation("TxnCreatedBy")
+  verificationsSubmitted StockVerification[]   @relation("VerificationSubmittedBy")
+  verificationsReviewed  StockVerification[]   @relation("VerificationReviewedBy")
+  adjustmentsApproved    StockAdjustment[]     @relation("AdjustmentApprovedBy")
+
+  suppliersCreated      Supplier[]                @relation("SupplierCreatedBy")
+  aliasesCreated        SupplierAlias[]           @relation("AliasCreatedBy")
+  mappingsConfirmed     SupplierMaterialMapping[] @relation("MappingConfirmedBy")
+  invoicesUploaded      Invoice[]                 @relation("InvoiceUploadedBy")
+  invoicesDupOverridden Invoice[]                 @relation("InvoiceDuplicateOverrideBy")
+  invoiceItemsReviewed  InvoiceItem[]             @relation("InvoiceItemReviewedBy")
+  aiLogs                AiProcessingLog[]         @relation("AiLogTriggeredBy")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") // sha256 of the opaque token
+  familyId  String    @map("family_id") @db.Uuid // rotation family; reuse ⇒ revoke the family
+  userAgent String?   @map("user_agent")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+model Role {
+  id       String  @id @default(uuid()) @db.Uuid
+  code     String  @unique // PROJECT_ADMIN | STORE_MANAGER
+  name     String
+  isSystem Boolean @default(true) @map("is_system")
+
+  permissions RolePermission[]
+  members     ProjectMember[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(uuid()) @db.Uuid
+  code        String @unique // e.g. "material_in:create"
+  module      String
+  description String
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Project {
+  id        String        @id @default(uuid()) @db.Uuid
+  code      String        @unique
+  name      String
+  address   String?
+  timezone  String        @default("Asia/Kolkata")
+  status    ProjectStatus @default(ACTIVE)
+  settings  Json          @default("{}")
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  members         ProjectMember[]
+  stores          Store[]
+  locations       Location[]
+  categories      MaterialCategory[]
+  units           Unit[]
+  unitConversions UnitConversion[]
+  materials       Material[]
+  auditLogs       AuditLog[]
+  sequences       IdSequence[]
+
+  contractors   Contractor[]
+  postings      Posting[]
+  transactions  MaterialTransaction[]
+  balances      StockBalance[]
+  verifications StockVerification[]
+  adjustments   StockAdjustment[]
+
+  suppliers        Supplier[]
+  supplierAliases  SupplierAlias[]
+  supplierMappings SupplierMaterialMapping[]
+  invoices         Invoice[]
+  invoicePages     InvoicePage[]
+  invoiceItems     InvoiceItem[]
+  aiLogs           AiProcessingLog[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String       @id @default(uuid()) @db.Uuid
+  projectId String       @map("project_id") @db.Uuid
+  userId    String       @map("user_id") @db.Uuid
+  roleId    String       @map("role_id") @db.Uuid
+  status    MemberStatus @default(ACTIVE)
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  project Project              @relation(fields: [projectId], references: [id])
+  user    User                 @relation(fields: [userId], references: [id])
+  role    Role                 @relation(fields: [roleId], references: [id])
+  stores  ProjectMemberStore[]
+
+  @@unique([projectId, userId]) // one role per user per project
+  @@unique([projectId, id])
+  @@index([userId])
+  @@map("project_members")
+}
+
+/// Which stores a Store Manager operates (DECISIONS Q2). The composite FKs keep the member and
+/// the store in the same project.
+model ProjectMemberStore {
+  projectId String @map("project_id") @db.Uuid
+  memberId  String @map("member_id") @db.Uuid
+  storeId   String @map("store_id") @db.Uuid
+
+  member ProjectMember @relation(fields: [projectId, memberId], references: [projectId, id], onDelete: Cascade)
+  store  Store         @relation(fields: [projectId, storeId], references: [projectId, id])
+
+  @@id([memberId, storeId])
+  @@map("project_member_stores")
+}
+
+// ───────────────────── Project structure ─────────────────────
+
+model Store {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  code      String
+  name      String
+  address   String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  project Project              @relation(fields: [projectId], references: [id])
+  members ProjectMemberStore[]
+
+  postings      Posting[]
+  transactions  MaterialTransaction[]
+  balances      StockBalance[]
+  verifications StockVerification[]
+  adjustments   StockAdjustment[]
+  invoices      Invoice[]
+
+  @@unique([projectId, code])
+  @@unique([projectId, id])
+  @@map("stores")
+}
+
+/// Issue destinations / return sources: Tower → Floor → Work area (PRD §14.3). Not stock-holding (Q3).
+model Location {
+  id             String       @id @default(uuid()) @db.Uuid
+  projectId      String       @map("project_id") @db.Uuid
+  parentId       String?      @map("parent_id") @db.Uuid
+  name           String
+  normalizedName String       @map("normalized_name")
+  type           LocationType
+  path           String // "Tower A / Floor 3 / Flat 302" for display & search
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  project  Project    @relation(fields: [projectId], references: [id])
+  parent   Location?  @relation("LocationTree", fields: [projectId, parentId], references: [projectId, id])
+  children Location[] @relation("LocationTree")
+
+  transactions MaterialTransaction[]
+
+  @@unique([projectId, id])
+  /// NULLS NOT DISTINCT is applied in the constraints migration (Prisma cannot express it).
+  @@unique([projectId, parentId, normalizedName], map: "loc_name_uq")
+  @@index([projectId, parentId])
+  @@map("locations")
+}
+
+// ───────────────────── Master data ─────────────────────
+
+/// parent_id NULL = category; non-NULL = subcategory (PRD §6.2). Project-scoped, seeded from §6.3.
+model MaterialCategory {
+  id             String   @id @default(uuid()) @db.Uuid
+  projectId      String   @map("project_id") @db.Uuid
+  parentId       String?  @map("parent_id") @db.Uuid
+  name           String
+  normalizedName String   @map("normalized_name")
+  isActive       Boolean  @default(true) @map("is_active")
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  project              Project            @relation(fields: [projectId], references: [id])
+  parent               MaterialCategory?  @relation("CategoryTree", fields: [projectId, parentId], references: [projectId, id])
+  children             MaterialCategory[] @relation("CategoryTree")
+  materials            Material[]         @relation("MaterialCategory")
+  materialsSubcategory Material[]         @relation("MaterialSubcategory")
+
+  @@unique([projectId, id])
+  /// NULLS NOT DISTINCT is applied in the constraints migration.
+  @@unique([projectId, parentId, normalizedName], map: "cat_name_uq")
+  @@map("material_categories")
+}
+
+/// project_id NULL = system unit (seeded, read-only); non-NULL = project-defined unit (PRD §12.2).
+model Unit {
+  id            String        @id @default(uuid()) @db.Uuid
+  projectId     String?       @map("project_id") @db.Uuid
+  code          String // BAG KG G MT NOS PCS M FT RFT L ROLL BOX BUNDLE CFT CUM
+  name          String
+  symbol        String
+  dimension     UnitDimension
+  decimalPlaces Int           @default(3) @map("decimal_places") // NOS/PCS/BAG = 0 (Q12)
+  aliases       String[] // "BAGS","BGS" for extraction mapping
+  isActive      Boolean       @default(true) @map("is_active")
+
+  project         Project?                @relation(fields: [projectId], references: [id])
+  materialsStock  Material[]              @relation("MaterialStockUnit")
+  materialsPack   Material[]              @relation("MaterialPackUnit")
+  conversionsFrom UnitConversion[]        @relation("ConversionFrom")
+  conversionsTo   UnitConversion[]        @relation("ConversionTo")
+  specs           MaterialSpecification[]
+
+  /// NULLS NOT DISTINCT is applied in the constraints migration, so system codes are unique too.
+  txnStockUnit   MaterialTransaction[] @relation("TxnUnit")
+  txnEnteredUnit MaterialTransaction[] @relation("TxnEnteredUnit")
+  invoiceItems   InvoiceItem[]         @relation("InvoiceItemUnit")
+
+  @@unique([projectId, code], map: "units_code_uq")
+  @@map("units")
+}
+
+/// Approved conversions only (PRD §12.4). material_id set ⇒ material-specific. Pack-size conversion
+/// (BAG→KG) is derived from materials.pack_size, not duplicated here.
+model UnitConversion {
+  id         String   @id @default(uuid()) @db.Uuid
+  projectId  String?  @map("project_id") @db.Uuid
+  materialId String?  @map("material_id") @db.Uuid
+  fromUnitId String   @map("from_unit_id") @db.Uuid
+  toUnitId   String   @map("to_unit_id") @db.Uuid
+  factor     Decimal  @db.Decimal(18, 6) // qty_to = qty_from × factor
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  project  Project?  @relation(fields: [projectId], references: [id])
+  material Material? @relation(fields: [materialId], references: [id])
+  fromUnit Unit      @relation("ConversionFrom", fields: [fromUnitId], references: [id])
+  toUnit   Unit      @relation("ConversionTo", fields: [toUnitId], references: [id])
+
+  /// NULLS NOT DISTINCT, CHECK factor > 0 and CHECK from <> to are in the constraints migration.
+  @@unique([projectId, materialId, fromUnitId, toUnitId], map: "conv_uq")
+  @@map("unit_conversions")
+}
+
+model Material {
+  id               String         @id @default(uuid()) @db.Uuid
+  projectId        String         @map("project_id") @db.Uuid
+  code             String // "MAT-000123": the user-facing Material ID (PRD §6.2)
+  name             String
+  normalizedName   String         @map("normalized_name")
+  categoryId       String         @map("category_id") @db.Uuid
+  subcategoryId    String?        @map("subcategory_id") @db.Uuid
+  brand            String?
+  normalizedBrand  String?        @map("normalized_brand")
+  specification    String? // free text; structured attrs in material_specifications
+  grade            String?
+  size             String?
+  stockUnitId      String         @map("stock_unit_id") @db.Uuid // "Primary Unit" (PRD §6.2)
+  packSize         Decimal?       @map("pack_size") @db.Decimal(18, 3) // 50
+  packUnitId       String?        @map("pack_unit_id") @db.Uuid // KG
+  isVariableWeight Boolean        @default(false) @map("is_variable_weight") // PRD §12.4
+  minimumStock     Decimal?       @map("minimum_stock") @db.Decimal(18, 3)
+  description      String?
+  status           MaterialStatus @default(ACTIVE)
+  creationSource   CreationSource @map("creation_source")
+  /// sha256 of the normalised identity (category, core name, brand, grade, size, pack, specification,
+  /// stock unit). Blocks exact duplicates at the DB level; near-duplicates go through the §6.5 flow.
+  identityKey      String         @map("identity_key")
+  createdById      String         @map("created_by_id") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deactivatedById  String?        @map("deactivated_by_id") @db.Uuid
+  deactivatedAt    DateTime?      @map("deactivated_at") @db.Timestamptz(3)
+  version          Int            @default(0) // optimistic concurrency for admin edits
+
+  project       Project                 @relation(fields: [projectId], references: [id])
+  category      MaterialCategory        @relation("MaterialCategory", fields: [projectId, categoryId], references: [projectId, id])
+  subcategory   MaterialCategory?       @relation("MaterialSubcategory", fields: [projectId, subcategoryId], references: [projectId, id])
+  stockUnit     Unit                    @relation("MaterialStockUnit", fields: [stockUnitId], references: [id])
+  packUnit      Unit?                   @relation("MaterialPackUnit", fields: [packUnitId], references: [id])
+  createdBy     User                    @relation("MaterialCreatedBy", fields: [createdById], references: [id])
+  deactivatedBy User?                   @relation("MaterialDeactivatedBy", fields: [deactivatedById], references: [id])
+  specs         MaterialSpecification[]
+  conversions   UnitConversion[]
+
+  transactions  MaterialTransaction[]
+  balances      StockBalance[]
+  verifications StockVerification[]
+  adjustments   StockAdjustment[]
+
+  supplierMappings SupplierMaterialMapping[]
+  invoiceItems     InvoiceItem[]             @relation("InvoiceItemMaterial")
+  createdFromItems InvoiceItem[]             @relation("CreatedFromItem")
+
+  @@unique([projectId, id])
+  @@unique([projectId, code])
+  @@unique([projectId, identityKey])
+  @@index([projectId, categoryId])
+  @@index([projectId, status])
+  @@index([projectId, createdAt]) // New Material Creation Report
+  @@index([normalizedName(ops: raw("gin_trgm_ops"))], type: Gin, map: "materials_name_trgm")
+  @@map("materials")
+}
+
+/// Structured attributes for spec-conflict checks (PRD §6.5, §8.2). Keys come from the registry in
+/// packages/shared (SIZE, GRADE, PACK).
+model MaterialSpecification {
+  id              String   @id @default(uuid()) @db.Uuid
+  materialId      String   @map("material_id") @db.Uuid
+  key             String
+  valueText       String?  @map("value_text")
+  valueNumeric    Decimal? @map("value_numeric") @db.Decimal(18, 4)
+  unitId          String?  @map("unit_id") @db.Uuid
+  normalizedValue String   @map("normalized_value") // canonical comparable form, e.g. "12MM", "FE550"
+
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  unit     Unit?    @relation(fields: [unitId], references: [id])
+
+  @@unique([materialId, key])
+  @@index([key, normalizedValue])
+  @@map("material_specifications")
+}
+
+// ───────────────────── Cross-cutting ─────────────────────
+
+/// APPEND-ONLY (PRD §18.3, §26 rule 16). UPDATE/DELETE blocked by trigger.
+model AuditLog {
+  id          BigInt    @id @default(autoincrement())
+  projectId   String?   @map("project_id") @db.Uuid
+  actorType   ActorType @map("actor_type")
+  actorUserId String?   @map("actor_user_id") @db.Uuid
+  action      String // "material.create", "user.password_reset", ...
+  entityType  String    @map("entity_type")
+  entityId    String    @map("entity_id")
+  before      Json?
+  after       Json?
+  metadata    Json?
+  requestId   String?   @map("request_id")
+  ip          String?
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  project Project? @relation(fields: [projectId], references: [id])
+  actor   User?    @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([projectId, createdAt])
+  @@index([projectId, action, createdAt]) // audit viewer filtered by action
+  @@index([entityType, entityId])
+  @@index([actorUserId, createdAt])
+  @@map("audit_logs")
+}
+
+/// Gap-tolerant human IDs per project (MAT-000123, RCV-2026-000045).
+model IdSequence {
+  projectId String        @map("project_id") @db.Uuid
+  scope     SequenceScope
+  year      Int // 0 for non-yearly scopes (MATERIAL)
+  nextValue BigInt        @default(1) @map("next_value")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@id([projectId, scope, year])
+  @@map("id_sequences")
+}
+
+// ═════════════════════ Phase 2: inventory ledger ═════════════════════
+
+enum PostingType {
+  RECEIPT_INVOICE
+  RECEIPT_MANUAL
+  RECEIPT_QUICK
+  ISSUE
+  RETURN
+  ADJUSTMENT
+  REVERSAL
+}
+
+enum TxnType {
+  MATERIAL_IN
+  MATERIAL_OUT
+  MATERIAL_RETURN
+  STOCK_ADJUSTMENT
+  REVERSAL
+}
+
+enum StockBucket {
+  AVAILABLE
+  DAMAGED
+  SCRAP
+}
+
+enum ReturnCondition {
+  GOOD
+  DAMAGED
+  SCRAP
+}
+
+enum VerificationStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum AdjustmentKind {
+  COUNT_CORRECTION
+  MANUAL_CORRECTION
+  DISPOSITION_WRITE_OFF
+  DISPOSITION_RESTORE
+}
+
+/// Who material is issued to (DECISIONS Q31). A merged contractor keeps its row and points at the
+/// survivor, because ledger rows that name it are never rewritten.
+model Contractor {
+  id             String   @id @default(uuid()) @db.Uuid
+  projectId      String   @map("project_id") @db.Uuid
+  name           String
+  normalizedName String   @map("normalized_name")
+  phone          String?
+  isActive       Boolean  @default(true) @map("is_active")
+  mergedIntoId   String?  @map("merged_into_id") @db.Uuid
+  createdById    String   @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  project      Project               @relation(fields: [projectId], references: [id])
+  mergedInto   Contractor?           @relation("ContractorMerge", fields: [projectId, mergedIntoId], references: [projectId, id])
+  mergedFrom   Contractor[]          @relation("ContractorMerge")
+  createdBy    User                  @relation("ContractorCreatedBy", fields: [createdById], references: [id])
+  transactions MaterialTransaction[]
+
+  @@unique([projectId, id])
+  @@unique([projectId, normalizedName])
+  @@map("contractors")
+}
+
+/// Header for one user action. Groups ledger rows; carries the human reference and the
+/// idempotency key. APPEND-ONLY (trigger).
+model Posting {
+  id                String      @id @default(uuid()) @db.Uuid
+  projectId         String      @map("project_id") @db.Uuid
+  storeId           String      @map("store_id") @db.Uuid
+  type              PostingType
+  referenceNo       String      @map("reference_no") // RCV-2026-000045 / ISS-… / RET-… / ADJ-… / REV-…
+  idempotencyKey    String      @map("idempotency_key")
+  requestHash       String      @map("request_hash")
+  supplierName      String?     @map("supplier_name") // as written; kept beside supplier_id
+  supplierId        String?     @map("supplier_id") @db.Uuid // Phase 3: invoice receipts name a supplier
+  /// An invoice posts at most once (PRD §13). Set at insert: postings are append-only.
+  invoiceId         String?     @unique @map("invoice_id") @db.Uuid
+  externalRef       String?     @map("external_ref") // invoice / challan / reference number as written
+  /// A reversal posting names the posting it reverses. Unique: a posting is reversed at most once.
+  reversesPostingId String?     @unique @map("reverses_posting_id") @db.Uuid
+  createdMaterialId String?     @map("created_material_id") @db.Uuid // Quick Receive that created a material
+  warnings          Json? // PostingWarning[] shown again on a retry
+  notes             String?
+  createdById       String      @map("created_by_id") @db.Uuid
+  postedAt          DateTime    @default(now()) @map("posted_at") @db.Timestamptz(3)
+
+  project      Project               @relation(fields: [projectId], references: [id])
+  store        Store                 @relation(fields: [projectId, storeId], references: [projectId, id])
+  reverses     Posting?              @relation("PostingReversal", fields: [reversesPostingId], references: [id])
+  reversedBy   Posting?              @relation("PostingReversal")
+  createdBy    User                  @relation("PostingCreatedBy", fields: [createdById], references: [id])
+  supplier     Supplier?             @relation(fields: [projectId, supplierId], references: [projectId, id])
+  invoice      Invoice?              @relation(fields: [invoiceId], references: [id])
+  transactions MaterialTransaction[]
+  adjustment   StockAdjustment?
+
+  @@unique([projectId, id])
+  @@unique([projectId, referenceNo])
+  @@unique([projectId, idempotencyKey]) // CLAUDE.md invariant 4
+  @@index([projectId, type, postedAt])
+  @@index([projectId, externalRef])
+  @@index([projectId, supplierId, postedAt])
+  @@map("postings")
+}
+
+/// APPEND-ONLY authoritative ledger (PRD §23.2, §18.3). UPDATE/DELETE blocked by trigger.
+/// quantity is a signed delta in the material's stock unit, applied to `bucket`.
+model MaterialTransaction {
+  id           String      @id @default(uuid()) @db.Uuid
+  seq          BigInt      @unique @default(autoincrement()) // global posting order
+  projectId    String      @map("project_id") @db.Uuid
+  storeId      String      @map("store_id") @db.Uuid
+  materialId   String      @map("material_id") @db.Uuid
+  postingId    String      @map("posting_id") @db.Uuid
+  lineNo       Int         @map("line_no")
+  txnNo        String      @map("txn_no") // "TXN-2026-000123" (PRD §18.2 Transaction ID)
+  type         TxnType
+  bucket       StockBucket
+  quantity     Decimal     @db.Decimal(18, 3) // signed; ≠ 0
+  unitId       String      @map("unit_id") @db.Uuid // = material.stock_unit_id at posting time
+  balanceAfter Decimal     @map("balance_after") @db.Decimal(18, 3) // bucket balance after this row
+
+  enteredQty       Decimal? @map("entered_qty") @db.Decimal(18, 3) // as typed, when not the stock unit
+  enteredUnitId    String?  @map("entered_unit_id") @db.Uuid
+  conversionFactor Decimal? @map("conversion_factor") @db.Decimal(24, 12)
+
+  locationId            String?          @map("location_id") @db.Uuid // OUT: destination; RETURN: source
+  contractorId          String?          @map("contractor_id") @db.Uuid
+  returnCondition       ReturnCondition? @map("return_condition")
+  reversesTransactionId String?          @unique @map("reverses_transaction_id") @db.Uuid // one reversal per row
+  invoiceItemId         String?          @map("invoice_item_id") @db.Uuid // the invoice line this row received
+  notes                 String?
+  createdById           String           @map("created_by_id") @db.Uuid
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  project     Project              @relation(fields: [projectId], references: [id])
+  store       Store                @relation(fields: [projectId, storeId], references: [projectId, id])
+  material    Material             @relation(fields: [projectId, materialId], references: [projectId, id])
+  posting     Posting              @relation(fields: [projectId, postingId], references: [projectId, id])
+  unit        Unit                 @relation("TxnUnit", fields: [unitId], references: [id])
+  enteredUnit Unit?                @relation("TxnEnteredUnit", fields: [enteredUnitId], references: [id])
+  location    Location?            @relation(fields: [projectId, locationId], references: [projectId, id])
+  contractor  Contractor?          @relation(fields: [projectId, contractorId], references: [projectId, id])
+  reverses    MaterialTransaction? @relation("Reversal", fields: [reversesTransactionId], references: [id])
+  reversedBy  MaterialTransaction? @relation("Reversal")
+  createdBy   User                 @relation("TxnCreatedBy", fields: [createdById], references: [id])
+  invoiceItem InvoiceItem?         @relation(fields: [invoiceItemId], references: [id])
+
+  @@unique([projectId, txnNo])
+  @@unique([postingId, lineNo])
+  @@unique([invoiceItemId, bucket]) // an invoice line posts each bucket at most once
+  @@index([projectId, storeId, materialId, seq])
+  @@index([projectId, type, createdAt])
+  @@index([projectId, materialId, createdAt])
+  @@index([projectId, locationId, materialId])
+  @@index([projectId, createdAt])
+  @@index([projectId, storeId, createdAt]) // store-wise reports over a period
+  @@map("material_transactions")
+}
+
+/// Projection of the ledger per store × material (PRD §23.3). Project-wide stock = SUM over stores.
+/// Changed only inside a posting transaction, under SELECT … FOR UPDATE.
+model StockBalance {
+  projectId          String   @map("project_id") @db.Uuid
+  storeId            String   @map("store_id") @db.Uuid
+  materialId         String   @map("material_id") @db.Uuid
+  availableQty       Decimal  @default(0) @map("available_qty") @db.Decimal(18, 3)
+  damagedQty         Decimal  @default(0) @map("damaged_qty") @db.Decimal(18, 3)
+  scrapQty           Decimal  @default(0) @map("scrap_qty") @db.Decimal(18, 3)
+  lastTransactionSeq BigInt?  @map("last_transaction_seq")
+  version            Int      @default(0)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  project  Project  @relation(fields: [projectId], references: [id])
+  store    Store    @relation(fields: [projectId, storeId], references: [projectId, id])
+  material Material @relation(fields: [projectId, materialId], references: [projectId, id])
+
+  @@id([storeId, materialId])
+  @@index([projectId, materialId])
+  @@map("stock_balances")
+}
+
+model StockVerification {
+  id            String             @id @default(uuid()) @db.Uuid
+  projectId     String             @map("project_id") @db.Uuid
+  storeId       String             @map("store_id") @db.Uuid
+  materialId    String             @map("material_id") @db.Uuid
+  bucket        StockBucket        @default(AVAILABLE)
+  systemQty     Decimal            @map("system_qty") @db.Decimal(18, 3) // snapshot read under lock
+  systemSeq     BigInt?            @map("system_seq") // ledger position of the snapshot
+  physicalQty   Decimal            @map("physical_qty") @db.Decimal(18, 3)
+  differenceQty Decimal            @map("difference_qty") @db.Decimal(18, 3) // physical − system
+  reason        String
+  status        VerificationStatus @default(SUBMITTED)
+  /// "store:material:bucket" while SUBMITTED, NULL afterwards: one open count at a time (Q17).
+  openKey       String?            @unique @map("open_key")
+  submittedById String             @map("submitted_by_id") @db.Uuid
+  submittedAt   DateTime           @default(now()) @map("submitted_at") @db.Timestamptz(3)
+  reviewedById  String?            @map("reviewed_by_id") @db.Uuid
+  reviewedAt    DateTime?          @map("reviewed_at") @db.Timestamptz(3)
+  reviewNote    String?            @map("review_note")
+
+  project     Project          @relation(fields: [projectId], references: [id])
+  store       Store            @relation(fields: [projectId, storeId], references: [projectId, id])
+  material    Material         @relation(fields: [projectId, materialId], references: [projectId, id])
+  submittedBy User             @relation("VerificationSubmittedBy", fields: [submittedById], references: [id])
+  reviewedBy  User?            @relation("VerificationReviewedBy", fields: [reviewedById], references: [id])
+  adjustment  StockAdjustment?
+
+  @@unique([projectId, id])
+  @@index([projectId, status, submittedAt])
+  @@index([projectId, submittedAt]) // Physical Stock Discrepancy Report
+  @@map("stock_verifications")
+}
+
+/// Only approved / authorised corrections exist here (PRD §23). Each one has exactly one posting.
+model StockAdjustment {
+  id             String         @id @default(uuid()) @db.Uuid
+  projectId      String         @map("project_id") @db.Uuid
+  storeId        String         @map("store_id") @db.Uuid
+  materialId     String         @map("material_id") @db.Uuid
+  kind           AdjustmentKind
+  bucket         StockBucket
+  quantityDelta  Decimal        @map("quantity_delta") @db.Decimal(18, 3)
+  reason         String
+  verificationId String?        @unique @map("verification_id") @db.Uuid
+  postingId      String         @unique @map("posting_id") @db.Uuid
+  approvedById   String         @map("approved_by_id") @db.Uuid
+  approvedAt     DateTime       @default(now()) @map("approved_at") @db.Timestamptz(3)
+
+  project      Project            @relation(fields: [projectId], references: [id])
+  store        Store              @relation(fields: [projectId, storeId], references: [projectId, id])
+  material     Material           @relation(fields: [projectId, materialId], references: [projectId, id])
+  verification StockVerification? @relation(fields: [verificationId], references: [id])
+  posting      Posting            @relation(fields: [postingId], references: [id])
+  approvedBy   User               @relation("AdjustmentApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([projectId, approvedAt])
+  @@map("stock_adjustments")
+}
+
+// ═════════════════════ Phase 3: suppliers, documents, AI ═════════════════════
+
+enum AliasSource {
+  MANUAL
+  CONFIRMED_INVOICE
+}
+
+enum MappingStatus {
+  CONFIRMED
+  DISABLED
+}
+
+enum DocumentType {
+  INVOICE
+  CHALLAN
+  INVOICE_WITH_CHALLAN
+  UNKNOWN
+}
+
+/// REVERSED: the receipt was reversed by an admin, which frees the invoice to be received again (Q15).
+enum InvoiceStatus {
+  UPLOADING
+  QUEUED
+  PROCESSING
+  NEEDS_RECAPTURE
+  READY_FOR_REVIEW
+  POSTED
+  REVERSED
+  FAILED
+  DISCARDED
+}
+
+enum ProcessingStage {
+  UPLOADED
+  QUALITY_CHECK
+  READING
+  IDENTIFYING
+  MATCHING
+  PREPARING
+  DONE
+}
+
+enum MatchStatus {
+  MATCHED
+  NEW_MATERIAL
+  REVIEW_REQUIRED
+}
+
+enum MatchMethod {
+  SUPPLIER_MAPPING
+  EXACT
+  NORMALISED
+  DB_SEARCH
+  SEMANTIC
+  AI_TIEBREAK
+  MANUAL
+}
+
+enum LineStatus {
+  PENDING
+  CONFIRMED
+  EXCLUDED
+}
+
+enum DiscrepancyReason {
+  SHORT_SUPPLY
+  DAMAGED
+  REJECTED
+  EXCESS
+  OTHER
+}
+
+enum AiStage {
+  QUALITY_CHECK
+  EXTRACTION
+  MATCH_TIEBREAK
+}
+
+enum AiCallStatus {
+  SUCCESS
+  INVALID_OUTPUT
+  PROVIDER_ERROR
+  TIMEOUT
+  REFUSED
+}
+
+/// Suppliers belong to one project (DECISIONS Q7).
+model Supplier {
+  id             String   @id @default(uuid()) @db.Uuid
+  projectId      String   @map("project_id") @db.Uuid
+  name           String
+  normalizedName String   @map("normalized_name")
+  gstin          String? // upper-case, format-checked
+  address        String?
+  phone          String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdById    String   @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  project   Project                   @relation(fields: [projectId], references: [id])
+  createdBy User                      @relation("SupplierCreatedBy", fields: [createdById], references: [id])
+  aliases   SupplierAlias[]
+  mappings  SupplierMaterialMapping[]
+  invoices  Invoice[]
+  postings  Posting[]
+
+  @@unique([projectId, id])
+  @@unique([projectId, gstin]) // NULLs may repeat
+  @@unique([projectId, normalizedName])
+  @@index([normalizedName(ops: raw("gin_trgm_ops"))], type: Gin, map: "suppliers_name_trgm")
+  @@map("suppliers")
+}
+
+/// Another spelling of a supplier's name, as printed on a confirmed document.
+model SupplierAlias {
+  id              String      @id @default(uuid()) @db.Uuid
+  projectId       String      @map("project_id") @db.Uuid
+  supplierId      String      @map("supplier_id") @db.Uuid
+  alias           String
+  normalizedAlias String      @map("normalized_alias")
+  source          AliasSource
+  createdById     String      @map("created_by_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  project   Project  @relation(fields: [projectId], references: [id])
+  supplier  Supplier @relation(fields: [projectId, supplierId], references: [projectId, id])
+  createdBy User     @relation("AliasCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([projectId, normalizedAlias]) // an alias resolves to exactly one supplier
+  @@index([supplierId])
+  @@map("supplier_aliases")
+}
+
+/// Learned mapping from a supplier's line description to a material (PRD §9.2). Written only by a
+/// user-confirmed posting (PRD §26 rule 17). `live_key` is set while CONFIRMED, so one live mapping
+/// exists per supplier description.
+model SupplierMaterialMapping {
+  id                    String        @id @default(uuid()) @db.Uuid
+  projectId             String        @map("project_id") @db.Uuid
+  supplierId            String        @map("supplier_id") @db.Uuid
+  description           String // as printed, from the confirming invoice
+  normalizedDescription String        @map("normalized_description")
+  materialId            String        @map("material_id") @db.Uuid
+  status                MappingStatus @default(CONFIRMED)
+  /// "supplierId:normalizedDescription" while CONFIRMED, NULL when DISABLED.
+  liveKey               String?       @unique @map("live_key")
+  confirmedById         String        @map("confirmed_by_id") @db.Uuid
+  confirmedAt           DateTime      @default(now()) @map("confirmed_at") @db.Timestamptz(3)
+  sourceInvoiceItemId   String?       @map("source_invoice_item_id") @db.Uuid
+  timesUsed             Int           @default(1) @map("times_used")
+  lastUsedAt            DateTime      @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  disabledReason        String?       @map("disabled_reason")
+
+  project     Project      @relation(fields: [projectId], references: [id])
+  supplier    Supplier     @relation(fields: [projectId, supplierId], references: [projectId, id])
+  material    Material     @relation(fields: [projectId, materialId], references: [projectId, id])
+  confirmedBy User         @relation("MappingConfirmedBy", fields: [confirmedById], references: [id])
+  sourceItem  InvoiceItem? @relation(fields: [sourceInvoiceItemId], references: [id])
+
+  @@index([projectId, supplierId, normalizedDescription])
+  @@index([materialId])
+  @@map("supplier_material_mappings")
+}
+
+/// An uploaded invoice or challan and its draft receipt. AI output lands here and in invoice_items
+/// only; stock changes when a Store Manager confirms (PRD §24.1).
+model Invoice {
+  id                String          @id @default(uuid()) @db.Uuid
+  projectId         String          @map("project_id") @db.Uuid
+  storeId           String          @map("store_id") @db.Uuid // receiving store
+  uploadedById      String          @map("uploaded_by_id") @db.Uuid
+  documentType      DocumentType    @default(UNKNOWN) @map("document_type")
+  status            InvoiceStatus   @default(UPLOADING)
+  stage             ProcessingStage @default(UPLOADED)
+  qualityReport     Json?           @map("quality_report")
+  qualityOverridden Boolean         @default(false) @map("quality_overridden") // Q27
+
+  // Resolved header (editable in review). The AI output is frozen in extracted_header.
+  supplierId          String?   @map("supplier_id") @db.Uuid
+  supplierNameRaw     String?   @map("supplier_name_raw")
+  supplierGstinRaw    String?   @map("supplier_gstin_raw")
+  supplierAddressRaw  String?   @map("supplier_address_raw")
+  invoiceNo           String?   @map("invoice_no")
+  normalizedInvoiceNo String?   @map("normalized_invoice_no")
+  invoiceDate         DateTime? @map("invoice_date") @db.Date
+  challanNo           String?   @map("challan_no")
+  normalizedChallanNo String?   @map("normalized_challan_no")
+  invoiceTotal        Decimal?  @map("invoice_total") @db.Decimal(18, 2)
+  taxDetails          Json?     @map("tax_details")
+  extractedHeader     Json?     @map("extracted_header") // zod ExtractedHeader with per-field confidence
+  extractionVersion   Int       @default(0) @map("extraction_version")
+  notes               String?
+
+  /// sha256 over the ordered page hashes: exact re-upload detection (PRD §13.2).
+  documentFingerprint   String?   @map("document_fingerprint")
+  duplicateOverrideById String?   @map("duplicate_override_by_id") @db.Uuid
+  duplicateOverrideAt   DateTime? @map("duplicate_override_at") @db.Timestamptz(3)
+  duplicateOverrideNote String?   @map("duplicate_override_note")
+  /// Duplicate hard stops (PRD §13). Set when the invoice is POSTED without an override, cleared
+  /// when its receipt is reversed. Unique, so a race between two confirmations cannot post twice.
+  dupHeaderKey          String?   @unique @map("dup_header_key") // supplier : invoice no : date
+  dupFingerprintKey     String?   @unique @map("dup_fingerprint_key") // project : file fingerprint
+  dupChallanKey         String?   @unique @map("dup_challan_key") // supplier : challan no (Q8)
+
+  postedAt            DateTime? @map("posted_at") @db.Timestamptz(3)
+  attemptCount        Int       @default(0) @map("attempt_count")
+  /// Set when a worker claims the document; the reaper recovers claims that went stale.
+  processingStartedAt DateTime? @map("processing_started_at") @db.Timestamptz(3)
+  /// A transient failure waits until this time before the next attempt.
+  nextAttemptAt       DateTime? @map("next_attempt_at") @db.Timestamptz(3)
+  failureCode         String?   @map("failure_code")
+  failureMessage      String?   @map("failure_message")
+  version             Int       @default(0) // optimistic concurrency for review edits
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  project             Project           @relation(fields: [projectId], references: [id])
+  store               Store             @relation(fields: [projectId, storeId], references: [projectId, id])
+  uploadedBy          User              @relation("InvoiceUploadedBy", fields: [uploadedById], references: [id])
+  supplier            Supplier?         @relation(fields: [projectId, supplierId], references: [projectId, id])
+  duplicateOverrideBy User?             @relation("InvoiceDuplicateOverrideBy", fields: [duplicateOverrideById], references: [id])
+  pages               InvoicePage[]
+  items               InvoiceItem[]
+  aiLogs              AiProcessingLog[]
+  posting             Posting?
+
+  @@unique([projectId, id])
+  @@index([projectId, status, createdAt])
+  @@index([projectId, createdAt]) // AI Processing Report
+  @@index([projectId, uploadedById, createdAt])
+  @@index([projectId, supplierId, normalizedInvoiceNo])
+  @@index([projectId, documentFingerprint])
+  @@index([status, nextAttemptAt])
+  @@map("invoices")
+}
+
+/// One uploaded file: an image (one page) or a PDF (page_count pages).
+model InvoicePage {
+  id           String    @id @default(uuid()) @db.Uuid
+  projectId    String    @map("project_id") @db.Uuid
+  invoiceId    String    @map("invoice_id") @db.Uuid
+  pageNo       Int       @map("page_no")
+  storageKey   String    @unique @map("storage_key") // projects/{pid}/invoices/{iid}/{n}.{ext}
+  mimeType     String    @map("mime_type") // verified by magic bytes
+  originalName String?   @map("original_name")
+  sizeBytes    Int       @map("size_bytes")
+  sha256       String
+  pageCount    Int       @default(1) @map("page_count")
+  widthPx      Int?      @map("width_px")
+  heightPx     Int?      @map("height_px")
+  quality      Json? // per-page quality assessment
+  /// Set when the stored file was removed by the retention job (Q25).
+  purgedAt     DateTime? @map("purged_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  project Project @relation(fields: [projectId], references: [id])
+  invoice Invoice @relation(fields: [projectId, invoiceId], references: [projectId, id], onDelete: Cascade)
+
+  @@unique([invoiceId, pageNo])
+  @@index([projectId, sha256])
+  @@map("invoice_pages")
+}
+
+model InvoiceItem {
+  id                    String  @id @default(uuid()) @db.Uuid
+  projectId             String  @map("project_id") @db.Uuid
+  invoiceId             String  @map("invoice_id") @db.Uuid
+  lineNo                Int     @map("line_no")
+  pageNo                Int?    @map("page_no")
+  isManualEntry         Boolean @default(false) @map("is_manual_entry") // PRD §11.5
+  /// Frozen AI output for this line (zod ExtractedLine). Never updated after extraction: user
+  /// corrections live in the typed columns below and in audit_logs.
+  extracted             Json?
+  originalDescription   String  @map("original_description")
+  normalizedDescription String  @map("normalized_description")
+  hsnCode               String? @map("hsn_code")
+
+  // Matching result (from the worker; re-run by the api after an edit, without the LLM).
+  matchStatus   MatchStatus  @map("match_status")
+  matchMethod   MatchMethod? @map("match_method")
+  matchScore    Decimal?     @map("match_score") @db.Decimal(5, 4)
+  candidates    Json? // top candidates with scores and conflicts
+  specConflicts Json?        @map("spec_conflicts")
+
+  // Resolution (editable until posted).
+  materialId        String? @map("material_id") @db.Uuid // existing material chosen
+  proposedMaterial  Json?   @map("proposed_material") // NEW_MATERIAL draft (zod)
+  createdMaterialId String? @map("created_material_id") @db.Uuid // set at posting
+
+  invoiceQty        Decimal?           @map("invoice_qty") @db.Decimal(18, 3)
+  invoiceUnitId     String?            @map("invoice_unit_id") @db.Uuid
+  invoiceUnitRaw    String?            @map("invoice_unit_raw")
+  unitPrice         Decimal?           @map("unit_price") @db.Decimal(18, 4)
+  lineTotal         Decimal?           @map("line_total") @db.Decimal(18, 2)
+  acceptedQty       Decimal?           @map("accepted_qty") @db.Decimal(18, 3) // → AVAILABLE
+  damagedQty        Decimal            @default(0) @map("damaged_qty") @db.Decimal(18, 3) // → DAMAGED (Q5)
+  rejectedQty       Decimal            @default(0) @map("rejected_qty") @db.Decimal(18, 3) // not stocked
+  shortQty          Decimal            @default(0) @map("short_qty") @db.Decimal(18, 3) // derived, stored
+  discrepancyReason DiscrepancyReason? @map("discrepancy_reason")
+  notes             String?
+
+  lineStatus   LineStatus @default(PENDING) @map("line_status")
+  reviewedById String?    @map("reviewed_by_id") @db.Uuid
+  reviewedAt   DateTime?  @map("reviewed_at") @db.Timestamptz(3)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  project         Project                   @relation(fields: [projectId], references: [id])
+  invoice         Invoice                   @relation(fields: [projectId, invoiceId], references: [projectId, id], onDelete: Cascade)
+  material        Material?                 @relation("InvoiceItemMaterial", fields: [projectId, materialId], references: [projectId, id])
+  createdMaterial Material?                 @relation("CreatedFromItem", fields: [createdMaterialId], references: [id])
+  invoiceUnit     Unit?                     @relation("InvoiceItemUnit", fields: [invoiceUnitId], references: [id])
+  reviewedBy      User?                     @relation("InvoiceItemReviewedBy", fields: [reviewedById], references: [id])
+  transactions    MaterialTransaction[]
+  mappingsSourced SupplierMaterialMapping[]
+
+  @@unique([invoiceId, lineNo])
+  @@index([projectId, materialId])
+  @@index([projectId, matchStatus])
+  @@map("invoice_items")
+}
+
+/// One row per AI call (PRD §18.3, §5.1 E, §19 AI Processing Report). APPEND-ONLY (trigger).
+model AiProcessingLog {
+  id               String       @id @default(uuid()) @db.Uuid
+  projectId        String       @map("project_id") @db.Uuid
+  invoiceId        String?      @map("invoice_id") @db.Uuid
+  /// Line number, for a per-line call (tie-break). Not a foreign key: lines are rewritten on re-extraction.
+  lineNo           Int?         @map("line_no")
+  triggeredById    String       @map("triggered_by_id") @db.Uuid // the uploader: drives "own activity" (PRD §3.2)
+  stage            AiStage
+  provider         String // "openai", "fixture"
+  model            String
+  promptVersion    String       @map("prompt_version")
+  attempt          Int
+  status           AiCallStatus
+  latencyMs        Int          @map("latency_ms")
+  inputTokens      Int?         @map("input_tokens")
+  outputTokens     Int?         @map("output_tokens")
+  response         Json? // raw model output, before validation
+  validationErrors Json?        @map("validation_errors")
+  errorCode        String?      @map("error_code")
+  errorMessage     String?      @map("error_message")
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  project     Project  @relation(fields: [projectId], references: [id])
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
+  triggeredBy User     @relation("AiLogTriggeredBy", fields: [triggeredById], references: [id])
+
+  @@index([projectId, createdAt])
+  @@index([projectId, triggeredById, createdAt])
+  @@index([invoiceId])
+  @@map("ai_processing_logs")
+}
+
+/// Fixed-window counters for rate limiting (login, uploads, exports). Kept in the database so the
+/// limits hold across API instances and restarts without needing Redis.
+model RateLimit {
+  key         String   @id
+  windowStart DateTime @map("window_start") @db.Timestamptz(3)
+  count       Int
+
+  @@index([windowStart])
+  @@map("rate_limits")
+}

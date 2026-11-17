@@ -1,0 +1,78 @@
+{
+  "_meta": {
+    "file": "ch-008.jpg",
+    "purpose": "Handwritten delivery challan, sand/aggregate. Volume units (brass/cft). No pack sizes; AI must not invent conversions.",
+    "document_type": "delivery_challan",
+    "synthetic": true,
+    "notes": "1 Brass = 100 cft. Unit 'Brass' is likely not in the Unit Master; expected behaviour is REVIEW, not an assumed conversion."
+  },
+  "expected_quality_check": "PASS",
+  "header": {
+    "supplier_name": "Om Sai Sand Suppliers (Sample)",
+    "supplier_address": "Uruli Kanchan, Pune",
+    "gstin": null,
+    "invoice_number": null,
+    "invoice_date": "2026-11-09",
+    "challan_number": "217",
+    "invoice_total": null
+  },
+  "items": [
+    {
+      "invoice_description": "River sand (washed)",
+      "suggested_name": "River Sand",
+      "category": "Sand and Aggregate",
+      "brand": null,
+      "specification": "Washed",
+      "grade": null,
+      "size": null,
+      "pack_size": null,
+      "quantity": 2,
+      "unit": "Brass",
+      "unit_price": null,
+      "line_total": null,
+      "hsn_code": null,
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": [
+        "unit"
+      ]
+    },
+    {
+      "invoice_description": "20mm metal (khadi)",
+      "suggested_name": "Coarse Aggregate 20mm",
+      "category": "Sand and Aggregate",
+      "brand": null,
+      "specification": null,
+      "grade": null,
+      "size": "20mm",
+      "pack_size": null,
+      "quantity": 3,
+      "unit": "Brass",
+      "unit_price": null,
+      "line_total": null,
+      "hsn_code": null,
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": [
+        "unit"
+      ]
+    },
+    {
+      "invoice_description": "Crush sand",
+      "suggested_name": "Crushed Sand (M-Sand)",
+      "category": "Sand and Aggregate",
+      "brand": null,
+      "specification": null,
+      "grade": null,
+      "size": null,
+      "pack_size": null,
+      "quantity": 1.5,
+      "unit": "Brass",
+      "unit_price": null,
+      "line_total": null,
+      "hsn_code": null,
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": [
+        "unit"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "@kavach/config/tsconfig/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "include": ["src", "test", "*.mts"]
+}

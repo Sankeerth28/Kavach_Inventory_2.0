@@ -1,0 +1,59 @@
+{
+  "_meta": {
+    "file": "ch-011.jpg",
+    "purpose": "Handwritten challan with Hinglish abbreviations (cmt, nos, pc).",
+    "document_type": "delivery_challan",
+    "synthetic": true,
+    "notes": "Pack size not written. AI must NOT invent 50 KG; leave null and flag."
+  },
+  "expected_quality_check": "PASS",
+  "header": {
+    "supplier_name": "Sai Krupa Cement Agencies (Sample)",
+    "supplier_address": "Shop 4, Market Yard, Pune 411037",
+    "gstin": "27ABCDE1234F1Z5",
+    "invoice_number": null,
+    "invoice_date": "2026-11-11",
+    "challan_number": "1102",
+    "invoice_total": null
+  },
+  "items": [
+    {
+      "invoice_description": "Ultra OPC53 - 300 bg",
+      "suggested_name": "OPC Cement 53 Grade",
+      "category": "Cement",
+      "brand": "UltraTech",
+      "specification": null,
+      "grade": "53",
+      "size": null,
+      "pack_size": null,
+      "quantity": 300,
+      "unit": "Bags",
+      "unit_price": null,
+      "line_total": null,
+      "hsn_code": "2523",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": [
+        "pack_size"
+      ]
+    },
+    {
+      "invoice_description": "Ambuja PPC - 150 bg",
+      "suggested_name": "PPC Cement",
+      "category": "Cement",
+      "brand": "Ambuja",
+      "specification": null,
+      "grade": null,
+      "size": null,
+      "pack_size": null,
+      "quantity": 150,
+      "unit": "Bags",
+      "unit_price": null,
+      "line_total": null,
+      "hsn_code": "2523",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": [
+        "pack_size"
+      ]
+    }
+  ]
+}

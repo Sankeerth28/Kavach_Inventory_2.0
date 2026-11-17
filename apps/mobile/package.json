@@ -1,0 +1,40 @@
+{
+  "name": "@kavach/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "dev": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "jest --forceExit"
+  },
+  "dependencies": {
+    "@kavach/api-client": "workspace:*",
+    "@kavach/shared": "workspace:*",
+    "@tanstack/react-query": "^5.107.1",
+    "expo": "~58.0.0",
+    "expo-document-picker": "~58.0.5",
+    "expo-file-system": "~58.0.13",
+    "expo-image-picker": "~58.0.10",
+    "expo-secure-store": "~58.0.3",
+    "expo-sharing": "~58.0.23",
+    "expo-status-bar": "~58.0.0",
+    "react": "^19.3.0",
+    "react-native": "~0.88.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.0",
+    "@jest/globals": "^30.0.0",
+    "@kavach/config": "workspace:*",
+    "@testing-library/react-native": "^14.0.0",
+    "@types/react": "~19.3.0",
+    "eslint": "catalog:",
+    "jest": "^30.0.0",
+    "jest-expo": "~58.0.0",
+    "test-renderer": "^1.0.0",
+    "typescript": "catalog:"
+  }
+}

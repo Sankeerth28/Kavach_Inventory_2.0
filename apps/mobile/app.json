@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "KAVACH",
+    "slug": "kavach",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "kavach",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kavachtechnologies.kavach",
+      "infoPlist": {
+        "NSCameraUsageDescription": "KAVACH uses the camera to scan invoices and delivery challans.",
+        "NSPhotoLibraryUsageDescription": "KAVACH reads photos of invoices and delivery challans that you choose."
+      }
+    },
+    "android": {
+      "package": "com.kavachtechnologies.kavach",
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "KAVACH uses the camera to scan invoices and delivery challans.",
+          "photosPermission": "KAVACH reads photos of invoices and delivery challans that you choose."
+        }
+      ]
+    ]
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "_meta": {
+    "file": "inv-006.jpg",
+    "purpose": "Phone photo of a hardware invoice. Includes ambiguous 'GI FITTING HEAVY' line that must go to REVIEW.",
+    "document_type": "invoice",
+    "synthetic": true,
+    "notes": null
+  },
+  "expected_quality_check": "PASS",
+  "header": {
+    "supplier_name": "Mahalaxmi Hardware Stores (Sample)",
+    "supplier_address": "Near Bus Stand, Wakad, Pune 411057",
+    "gstin": "27EFGHI5678K1Z9",
+    "invoice_number": "MH/2026/774",
+    "invoice_date": "2026-11-05",
+    "challan_number": null,
+    "taxable_value": 19325,
+    "cgst": 1739.25,
+    "sgst": 1739.25,
+    "invoice_total": 22803.5
+  },
+  "items": [
+    {
+      "invoice_description": "GI FITTING HEAVY",
+      "suggested_name": "GI Fitting (size unknown)",
+      "category": "Plumbing",
+      "brand": null,
+      "specification": "Heavy",
+      "grade": null,
+      "size": null,
+      "pack_size": null,
+      "quantity": 25,
+      "unit": "Nos",
+      "unit_price": 145,
+      "line_total": 3625,
+      "hsn_code": "7307",
+      "expected_match_hint": "REVIEW_REQUIRED",
+      "uncertain_fields": [
+        "size"
+      ]
+    },
+    {
+      "invoice_description": "ANCHOR FASTENER 10X75",
+      "suggested_name": "Anchor Fastener 10x75mm",
+      "category": "Hardware",
+      "brand": null,
+      "specification": null,
+      "grade": null,
+      "size": "10x75mm",
+      "pack_size": null,
+      "quantity": 500,
+      "unit": "Nos",
+      "unit_price": 9,
+      "line_total": 4500,
+      "hsn_code": "7318",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    },
+    {
+      "invoice_description": "SAFETY HELMET ISI YELLOW",
+      "suggested_name": "Safety Helmet ISI",
+      "category": "Safety Equipment",
+      "brand": null,
+      "specification": "ISI marked, yellow",
+      "grade": null,
+      "size": null,
+      "pack_size": null,
+      "quantity": 50,
+      "unit": "Nos",
+      "unit_price": 180,
+      "line_total": 9000,
+      "hsn_code": "6506",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    },
+    {
+      "invoice_description": "HACKSAW BLADE 12IN",
+      "suggested_name": "Hacksaw Blade 12 inch",
+      "category": "Tools and Equipment",
+      "brand": null,
+      "specification": null,
+      "grade": null,
+      "size": "12 inch",
+      "pack_size": null,
+      "quantity": 100,
+      "unit": "Nos",
+      "unit_price": 22,
+      "line_total": 2200,
+      "hsn_code": "8202",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "extends": "@kavach/config/tsconfig/base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src", "*.mts"]
+}

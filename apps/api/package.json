@@ -1,0 +1,49 @@
+{
+  "name": "@kavach/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "seed": "nest build && node --env-file-if-exists=../../.env dist/cli/seed.js",
+    "project:create": "nest build && node --env-file-if-exists=../../.env dist/cli/create-project.js",
+    "user:admin": "nest build && node --env-file-if-exists=../../.env dist/cli/user-admin.js",
+    "ops:check": "node --env-file-if-exists=../../.env dist/cli/ops-check.js"
+  },
+  "dependencies": {
+    "@kavach/db": "workspace:*",
+    "@kavach/matching": "workspace:*",
+    "@kavach/shared": "workspace:*",
+    "@kavach/storage": "workspace:*",
+    "@nestjs/common": "^12.0.0",
+    "@nestjs/core": "^12.0.0",
+    "@nestjs/platform-express": "^12.0.0",
+    "@node-rs/argon2": "^2.2.2",
+    "bullmq": "^6.0.0",
+    "exceljs": "^4.4.0",
+    "jose": "^6.2.17",
+    "pdfkit": "^0.17.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@kavach/config": "workspace:*",
+    "@nestjs/cli": "^12.0.0",
+    "@nestjs/testing": "^12.0.0",
+    "@swc/core": "^1.15.18",
+    "@types/express": "^5.0.6",
+    "@types/node": "catalog:",
+    "@types/pdfkit": "^0.17.7",
+    "@types/supertest": "^7.0.0",
+    "eslint": "catalog:",
+    "supertest": "^7.0.0",
+    "typescript": "catalog:",
+    "unplugin-swc": "^2.0.0",
+    "vitest": "catalog:"
+  }
+}

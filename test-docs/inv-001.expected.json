@@ -1,0 +1,58 @@
+{
+  "_meta": {
+    "file": "inv-001.pdf",
+    "purpose": "Clean printed GST invoice, cement. Baseline extraction.",
+    "document_type": "invoice",
+    "synthetic": true,
+    "notes": null
+  },
+  "expected_quality_check": "PASS",
+  "header": {
+    "supplier_name": "Sai Krupa Cement Agencies (Sample)",
+    "supplier_address": "Shop 4, Market Yard, Pune 411037",
+    "gstin": "27ABCDE1234F1Z5",
+    "invoice_number": "SKC/26-27/1045",
+    "invoice_date": "2026-11-09",
+    "challan_number": "1045",
+    "taxable_value": 264500,
+    "cgst": 23805.0,
+    "sgst": 23805.0,
+    "invoice_total": 312110.0
+  },
+  "items": [
+    {
+      "invoice_description": "ULTRATECH OPC 53 GRADE 50KG",
+      "suggested_name": "OPC Cement 53 Grade",
+      "category": "Cement",
+      "brand": "UltraTech",
+      "specification": null,
+      "grade": "53",
+      "size": null,
+      "pack_size": "50 KG",
+      "quantity": 500,
+      "unit": "Bags",
+      "unit_price": 385,
+      "line_total": 192500,
+      "hsn_code": "2523",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    },
+    {
+      "invoice_description": "ULTRATECH PPC 50KG",
+      "suggested_name": "PPC Cement",
+      "category": "Cement",
+      "brand": "UltraTech",
+      "specification": null,
+      "grade": null,
+      "size": null,
+      "pack_size": "50 KG",
+      "quantity": 200,
+      "unit": "Bags",
+      "unit_price": 360,
+      "line_total": 72000,
+      "hsn_code": "2523",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    }
+  ]
+}

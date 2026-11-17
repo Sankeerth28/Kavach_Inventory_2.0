@@ -1,0 +1,57 @@
+{
+  "_meta": {
+    "file": "ch-009.jpg",
+    "purpose": "Handwritten challan with an OVERWRITTEN quantity. Quantity field must be flagged uncertain.",
+    "document_type": "delivery_challan",
+    "synthetic": true,
+    "notes": "Quantity on line 1 was written as 6000, struck out, and 8000 written beside it. Correct value is 8000 but must be shown as REVIEW."
+  },
+  "expected_quality_check": "PASS",
+  "header": {
+    "supplier_name": "Shivam Brick Works (Sample)",
+    "supplier_address": "Kesnand Road, Wagholi, Pune",
+    "gstin": null,
+    "invoice_number": null,
+    "invoice_date": "2026-11-10",
+    "challan_number": "58",
+    "invoice_total": null
+  },
+  "items": [
+    {
+      "invoice_description": "Red clay bricks 9x4x3",
+      "suggested_name": "Red Clay Brick 9x4x3",
+      "category": "Bricks and Blocks",
+      "brand": null,
+      "specification": null,
+      "grade": null,
+      "size": "9x4x3 inch",
+      "pack_size": null,
+      "quantity": 8000,
+      "unit": "Nos",
+      "unit_price": null,
+      "line_total": null,
+      "hsn_code": null,
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": [
+        "quantity"
+      ]
+    },
+    {
+      "invoice_description": "AAC block 600x200x150",
+      "suggested_name": "AAC Block 600x200x150",
+      "category": "Bricks and Blocks",
+      "brand": null,
+      "specification": null,
+      "grade": null,
+      "size": "600x200x150mm",
+      "pack_size": null,
+      "quantity": 450,
+      "unit": "Nos",
+      "unit_price": null,
+      "line_total": null,
+      "hsn_code": null,
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    }
+  ]
+}

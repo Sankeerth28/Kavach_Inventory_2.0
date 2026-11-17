@@ -1,0 +1,63 @@
+@import 'tailwindcss';
+
+/*
+ * KAVACH theme: teal and white. Every colour in the app comes from these tokens,
+ * so the brand can be changed here without touching the pages.
+ */
+:root {
+  color-scheme: light;
+
+  --background: oklch(0.982 0.008 185); /* page: white with a hint of teal */
+  --surface: oklch(1 0 0); /* cards, header, inputs */
+  --foreground: oklch(0.26 0.03 205); /* body text: deep teal-slate */
+  --muted: oklch(0.965 0.014 185); /* table heads, hovers */
+  --muted-foreground: oklch(0.5 0.03 205);
+  --border: oklch(0.91 0.022 185);
+
+  --primary: oklch(0.51 0.086 186); /* teal-700 #0f766e: buttons, links, focus */
+  --primary-hover: oklch(0.44 0.078 188); /* teal-800 #115e59 */
+  --primary-soft: oklch(0.95 0.045 180); /* teal-100: active nav, info */
+  --primary-foreground: oklch(1 0 0);
+
+  --sidebar: oklch(0.39 0.068 189); /* teal-900-ish: left navigation */
+  --sidebar-foreground: oklch(0.97 0.02 180);
+  --sidebar-muted: oklch(0.82 0.06 180);
+
+  --danger: oklch(0.55 0.2 27);
+  --warning: oklch(0.7 0.15 75);
+  --success: oklch(0.55 0.14 150);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+::selection {
+  background: var(--primary-soft);
+}

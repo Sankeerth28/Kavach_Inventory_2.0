@@ -1,0 +1,78 @@
+{
+  "_meta": {
+    "file": "ch-010.jpg",
+    "purpose": "Printed challan form filled by hand (mixed printed + handwritten).",
+    "document_type": "delivery_challan",
+    "synthetic": true,
+    "notes": "Grade missing on challan; AI must leave grade null/uncertain rather than assume Fe550D."
+  },
+  "expected_quality_check": "PASS",
+  "header": {
+    "supplier_name": "Laxmi Steel Traders (Sample)",
+    "supplier_address": "Gat No 88, Bhosari MIDC, Pune 411026",
+    "gstin": "27BCDEF2345G1Z6",
+    "invoice_number": null,
+    "invoice_date": "2026-11-11",
+    "challan_number": "LST-DC-0412",
+    "invoice_total": null
+  },
+  "items": [
+    {
+      "invoice_description": "TMT 10mm",
+      "suggested_name": "TMT Steel 10mm",
+      "category": "Steel",
+      "brand": null,
+      "specification": null,
+      "grade": "Fe550D (not written)",
+      "size": "10mm",
+      "pack_size": null,
+      "quantity": 1.2,
+      "unit": "MT",
+      "unit_price": null,
+      "line_total": null,
+      "hsn_code": "7214",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": [
+        "grade"
+      ]
+    },
+    {
+      "invoice_description": "TMT 25mm",
+      "suggested_name": "TMT Steel 25mm",
+      "category": "Steel",
+      "brand": null,
+      "specification": null,
+      "grade": null,
+      "size": "25mm",
+      "pack_size": null,
+      "quantity": 0.9,
+      "unit": "MT",
+      "unit_price": null,
+      "line_total": null,
+      "hsn_code": "7214",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": [
+        "grade"
+      ]
+    },
+    {
+      "invoice_description": "Ring 8mm",
+      "suggested_name": "Steel Stirrup/Ring 8mm",
+      "category": "Steel",
+      "brand": null,
+      "specification": null,
+      "grade": null,
+      "size": "8mm",
+      "pack_size": null,
+      "quantity": 400,
+      "unit": "Kg",
+      "unit_price": null,
+      "line_total": null,
+      "hsn_code": null,
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": [
+        "suggested_name"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "_meta": {
+    "file": "inv-004.pdf",
+    "purpose": "Electrical: wire coils, sq mm sizes, boxes.",
+    "document_type": "invoice",
+    "synthetic": true,
+    "notes": null
+  },
+  "expected_quality_check": "PASS",
+  "header": {
+    "supplier_name": "Prakash Electricals (Sample)",
+    "supplier_address": "Laxmi Road, Shukrawar Peth, Pune 411002",
+    "gstin": "27DEFGH4567J1Z8",
+    "invoice_number": "PE-5521",
+    "invoice_date": "2026-11-06",
+    "challan_number": null,
+    "taxable_value": 153640,
+    "cgst": 13827.6,
+    "sgst": 13827.6,
+    "invoice_total": 181295.2
+  },
+  "items": [
+    {
+      "invoice_description": "FR PVC WIRE 1.5 SQMM 90M COIL",
+      "suggested_name": "FR PVC Wire 1.5 sq mm",
+      "category": "Electrical",
+      "brand": null,
+      "specification": "FR PVC, 90 m coil",
+      "grade": null,
+      "size": "1.5 sq mm",
+      "pack_size": "90 m",
+      "quantity": 40,
+      "unit": "Rolls",
+      "unit_price": 1450,
+      "line_total": 58000,
+      "hsn_code": "8544",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    },
+    {
+      "invoice_description": "FR PVC WIRE 2.5 SQMM 90M COIL",
+      "suggested_name": "FR PVC Wire 2.5 sq mm",
+      "category": "Electrical",
+      "brand": null,
+      "specification": "FR PVC, 90 m coil",
+      "grade": null,
+      "size": "2.5 sq mm",
+      "pack_size": "90 m",
+      "quantity": 30,
+      "unit": "Rolls",
+      "unit_price": 2280,
+      "line_total": 68400,
+      "hsn_code": "8544",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    },
+    {
+      "invoice_description": "PVC CONDUIT 25MM MEDIUM 3M",
+      "suggested_name": "PVC Conduit Pipe 25mm Medium",
+      "category": "Electrical",
+      "brand": null,
+      "specification": "Medium gauge, 3 m",
+      "grade": null,
+      "size": "25mm",
+      "pack_size": null,
+      "quantity": 300,
+      "unit": "Nos",
+      "unit_price": 62,
+      "line_total": 18600,
+      "hsn_code": "3917",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    },
+    {
+      "invoice_description": "MS CONCEALED BOX 6 MODULE",
+      "suggested_name": "MS Concealed Box 6 Module",
+      "category": "Electrical",
+      "brand": null,
+      "specification": null,
+      "grade": null,
+      "size": "6 module",
+      "pack_size": null,
+      "quantity": 180,
+      "unit": "Nos",
+      "unit_price": 48,
+      "line_total": 8640,
+      "hsn_code": "8538",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    }
+  ]
+}

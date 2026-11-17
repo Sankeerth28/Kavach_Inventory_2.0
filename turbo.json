@@ -1,0 +1,30 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "env": ["NEXT_PUBLIC_API_URL", "API_PROXY_TARGET"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "dependsOn": ["^build"],
+      "passThroughEnv": [
+        "NEXT_PUBLIC_API_URL",
+        "API_PROXY_TARGET",
+        "EXPO_PUBLIC_API_URL",
+        "WEB_ORIGIN",
+        "COOKIE_SECURE",
+        "COOKIE_PATH"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {},
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    }
+  }
+}

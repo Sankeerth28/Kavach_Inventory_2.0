@@ -1,0 +1,43 @@
+{
+  "name": "kavach",
+  "private": true,
+  "engines": {
+    "node": ">=22.12 <23"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "depcruise": "depcruise apps packages --config packages/config/dependency-cruiser.cjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d --wait",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "db:generate": "pnpm --filter @kavach/db generate",
+    "db:migrate": "pnpm --filter @kavach/db migrate",
+    "db:seed": "turbo run build --filter=@kavach/db && pnpm --filter @kavach/api seed",
+    "project:create": "pnpm --filter @kavach/api project:create",
+    "db:deploy": "pnpm --filter @kavach/db migrate:deploy",
+    "user:reset-password": "pnpm --filter @kavach/api user:admin reset-password",
+    "user:add-member": "pnpm --filter @kavach/api user:admin add-member",
+    "ops:check": "pnpm --silent --filter @kavach/api ops:check",
+    "share": "node scripts/share.mjs",
+    "share:mobile": "node scripts/share-mobile.mjs"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^18.0.0",
+    "prettier": "^3.0.0",
+    "turbo": "^2.0.0",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@12.21.0",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": ">=12.0.0",
+      "onFail": "ignore"
+    }
+  }
+}

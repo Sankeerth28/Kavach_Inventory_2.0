@@ -1,0 +1,92 @@
+{
+  "_meta": {
+    "file": "inv-003.pdf",
+    "purpose": "Plumbing with sizes and SDR spec.",
+    "document_type": "invoice",
+    "synthetic": true,
+    "notes": null
+  },
+  "expected_quality_check": "PASS",
+  "header": {
+    "supplier_name": "Jal Shakti Pipes & Fittings (Sample)",
+    "supplier_address": "22 Station Road, Hadapsar, Pune 411028",
+    "gstin": "27CDEFG3456H1Z7",
+    "invoice_number": "JSP/889",
+    "invoice_date": "2026-11-07",
+    "challan_number": "CH-889",
+    "taxable_value": 87260,
+    "cgst": 7853.4,
+    "sgst": 7853.4,
+    "invoice_total": 102966.8
+  },
+  "items": [
+    {
+      "invoice_description": "CPVC PIPE SDR11 25MM 3MTR",
+      "suggested_name": "CPVC Pipe 25mm SDR11",
+      "category": "Plumbing",
+      "brand": null,
+      "specification": "SDR11, 3 m length",
+      "grade": null,
+      "size": "25mm",
+      "pack_size": null,
+      "quantity": 100,
+      "unit": "Nos",
+      "unit_price": 410,
+      "line_total": 41000,
+      "hsn_code": "3917",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    },
+    {
+      "invoice_description": "CPVC PIPE SDR11 20MM 3MTR",
+      "suggested_name": "CPVC Pipe 20mm SDR11",
+      "category": "Plumbing",
+      "brand": null,
+      "specification": "SDR11, 3 m length",
+      "grade": null,
+      "size": "20mm",
+      "pack_size": null,
+      "quantity": 120,
+      "unit": "Nos",
+      "unit_price": 295,
+      "line_total": 35400,
+      "hsn_code": "3917",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    },
+    {
+      "invoice_description": "CPVC ELBOW 25MM",
+      "suggested_name": "CPVC Elbow 25mm",
+      "category": "Plumbing",
+      "brand": null,
+      "specification": null,
+      "grade": null,
+      "size": "25mm",
+      "pack_size": null,
+      "quantity": 250,
+      "unit": "Nos",
+      "unit_price": 18,
+      "line_total": 4500,
+      "hsn_code": "3917",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    },
+    {
+      "invoice_description": "SOLVENT CEMENT 237ML",
+      "suggested_name": "CPVC Solvent Cement 237ml",
+      "category": "Plumbing",
+      "brand": null,
+      "specification": null,
+      "grade": null,
+      "size": null,
+      "pack_size": "237 ml",
+      "quantity": 24,
+      "unit": "Nos",
+      "unit_price": 265,
+      "line_total": 6360,
+      "hsn_code": "3506",
+      "expected_match_hint": "NEW_OR_MATCHED",
+      "uncertain_fields": []
+    }
+  ]
+}
