@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { type FeatureEnvConfig, loadFeatureEnv } from '@kavach/shared';
 import {
   type DocumentExtractor,
   ExtractorError,
@@ -16,6 +17,8 @@ export interface WorkerConfig {
   concurrency: number;
   /** Days after which discarded and failed uploads are purged (DECISIONS Q25). */
   retentionDays: number;
+  /** PRD v2.1 features: flag defaults, JOBS_ENABLED / JOBS_TIMEZONE and channel settings. */
+  features: FeatureEnvConfig;
 }
 
 export function loadWorkerConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
@@ -28,6 +31,7 @@ export function loadWorkerConfig(env: NodeJS.ProcessEnv = process.env): WorkerCo
     pollMs: Math.max(250, Number(env.DOCUMENT_POLL_MS ?? 2000)),
     concurrency: Math.min(16, Math.max(1, Number(env.DOCUMENT_CONCURRENCY ?? 4))),
     retentionDays: Math.max(1, Number(env.DOCUMENT_RETENTION_DAYS ?? 30)),
+    features: loadFeatureEnv(env),
   };
 }
 

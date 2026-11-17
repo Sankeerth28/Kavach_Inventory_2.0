@@ -1,4 +1,4 @@
-import { type RoleCode, normalise } from '@kavach/shared';
+import { DEFAULT_BUSINESS_SETTINGS, type RoleCode, normalise } from '@kavach/shared';
 import type { Prisma, Project, SequenceScope } from '@prisma/client';
 
 /**
@@ -41,6 +41,8 @@ export async function createProject(tx: Tx, input: CreateProjectInput): Promise<
       name: input.name.trim(),
       address: input.address ?? null,
       timezone: input.timezone ?? 'Asia/Kolkata',
+      // v2.1 business settings (change spec §1.1). Feature-flag overrides are not seeded.
+      settings: { ...DEFAULT_BUSINESS_SETTINGS },
     },
   });
   await tx.materialCategory.createMany({

@@ -1,3 +1,5 @@
+import { type FeatureEnvConfig, loadFeatureEnv } from '@kavach/shared';
+
 /** Environment configuration. Secrets come from the environment only (PRD §25.2). */
 export interface AppConfig {
   jwtSecret: Uint8Array;
@@ -7,6 +9,8 @@ export interface AppConfig {
   cookieSecure: boolean;
   /** Path of the refresh cookie as the browser sees it (prefixed when the web app proxies the API). */
   cookiePath: string;
+  /** PRD v2.1 features: flag defaults and the settings they need (docs/ENV_SETUP.md). */
+  features: FeatureEnvConfig;
 }
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
@@ -30,6 +34,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       throw new Error(`In production every WEB_ORIGIN must be https:// (got ${plain.join(', ')}).`);
     }
   }
+  // Fails fast naming any variable that a feature turned on by default needs.
+  const features = loadFeatureEnv(env);
   return {
     jwtSecret: new TextEncoder().encode(secret),
     accessTokenTtlSeconds: 15 * 60,
@@ -37,5 +43,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     webOrigins,
     cookieSecure: env.COOKIE_SECURE === 'true',
     cookiePath: env.COOKIE_PATH?.trim() || '/auth',
+    features,
   };
 }

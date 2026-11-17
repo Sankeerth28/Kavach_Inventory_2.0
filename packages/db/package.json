@@ -18,6 +18,7 @@
     "generate": "prisma generate",
     "build": "prisma generate && tsc -p tsconfig.build.json",
     "migrate": "node --env-file-if-exists=../../.env ./node_modules/prisma/build/index.js migrate dev",
+    "migrate:down": "node --env-file-if-exists=../../.env scripts/migrate-down.mjs",
     "migrate:deploy": "node --env-file-if-exists=../../.env ./node_modules/prisma/build/index.js migrate deploy",
     "studio": "node --env-file-if-exists=../../.env ./node_modules/prisma/build/index.js studio",
     "typecheck": "tsc --noEmit",

@@ -1,4 +1,4 @@
-import { type PrismaClient, createPrismaClient, withProjectScope } from '@kavach/db';
+import { FeatureFlags, type PrismaClient, createPrismaClient, withProjectScope } from '@kavach/db';
 import { createStorage } from '@kavach/storage';
 import { Worker } from 'bullmq';
 import { createExtractor, loadWorkerConfig } from './config';
@@ -20,6 +20,8 @@ const raw = createPrismaClient();
 const db = withProjectScope(raw) as unknown as PrismaClient;
 const extractor = createExtractor();
 const storage = createStorage();
+// The single feature-flag helper (v2.1), shared with the API.
+const featureFlags = new FeatureFlags(raw);
 const runner = new PipelineRunner({ db, storage, extractor, log: (m) => console.log(m) }, config);
 
 // Redis is optional. Without it the worker polls the database, which is all the pipeline needs.
@@ -40,7 +42,14 @@ if (config.queueMode === 'bullmq') {
   }
 }
 
-runner.start();
+// Refuse to start when a project override turns on a v2.1 feature whose environment is missing.
+featureFlags.assertProjectOverridesConfigured().then(
+  () => runner.start(),
+  (e: unknown) => {
+    console.error((e as Error).message);
+    process.exit(1);
+  },
+);
 console.log(
   `worker ready: queue=${config.queueMode}, ai=${extractor.provider}/${extractor.model}, storage=${storage.driver}`,
 );
